@@ -1,15 +1,13 @@
+from data_loader import load_data_from_csv
+from ml_model import predictor
+from models import PassengerModel, PassengerData
+
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.future import select
-from data_loader import load_data_from_csv
-from models import PassengerModel
-from ml_model import predictor
-from sqlalchemy import Column, Integer, Float, String
-import pandas as pd
-from data_loader import load_data_from_csv
-from models import PassengerModel
+
+
 
 DATABASE_URL = "sqlite+aiosqlite:///./titanic.db"
 engine = create_async_engine(DATABASE_URL, echo=True)
@@ -18,14 +16,6 @@ SessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession)
 app = FastAPI()
 Base = declarative_base()
 
-class PassengerData(BaseModel):
-    Pclass: int
-    Sex: str
-    Age: float
-    SibSp: float
-    Parch: int
-    Fare: float
-    Embarked: str
 
 @app.on_event("startup")
 async def startup():
@@ -36,12 +26,14 @@ async def startup():
         csv_file_path = './Data_for_Titanic/survival_probabilities.csv'
         await load_data_from_csv(session, csv_file_path)
 
+# endpoint для проверки выживет ли пассажир
 @app.post("/predict_survival/")
 async def predict_survival(passenger_data: PassengerData):
     passenger_dict = passenger_data.dict()
     probability = predictor(passenger_data=passenger_dict)
     return {"survival_probability": probability}
 
+# endpoint для запроса данных о пассажире
 @app.get("/passenger/{passenger_id}")
 async def get_passenger(passenger_id: int):
     async with SessionLocal() as session:
@@ -60,6 +52,7 @@ async def get_passenger(passenger_id: int):
             "Embarked": passenger.Embarked
         }
 
+# endpoint для добавления пассажира
 @app.post("/add_passenger/")
 async def add_passenger(passenger_data: PassengerData):
     async with SessionLocal() as session:
@@ -68,6 +61,7 @@ async def add_passenger(passenger_data: PassengerData):
         await session.commit()
         return {"message": "Passenger added successfully"}
 
+# endpoint для удаления пассажира
 @app.delete("/delete_passenger/{passenger_id}")
 async def delete_passenger(passenger_id: int):
     async with SessionLocal() as session:
@@ -79,7 +73,7 @@ async def delete_passenger(passenger_id: int):
         await session.commit()
         return {"message": "Passenger deleted successfully"}
 
-# Run the API
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000) 
